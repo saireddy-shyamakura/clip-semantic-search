@@ -1,0 +1,17 @@
+[project]
+name = "momento"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "clip",
+    "matplotlib>=3.10.9",
+    "pillow>=12.2.0",
+    "scikit-learn>=1.8.0",
+    "torch>=2.12.0",
+    "torchvision>=0.27.0",
+]
+
+[tool.uv.sources]
+clip = { git = "https://github.com/openai/CLIP.git" }
