@@ -1,6 +1,6 @@
-# Momento
+# clip-semantic-search
 
-Momento is a simple semantic search demo that uses OpenAI CLIP to compare image content with text descriptions.
+clip-semantic-search is a simple semantic search demo that uses OpenAI CLIP to compare image content with text descriptions.
 
 ## Overview
 
