@@ -63,34 +63,39 @@ def extract_text_features(text):
 
 # Add Images
 def add_images(*input_paths):
-    image_paths = []
+    added_any = False
+
     for path in input_paths:
         path = os.path.abspath(path)
+
+        # If directory → iterate files
         if os.path.isdir(path):
-            for file in os.listdir(path):
-                if file.lower().endswith(('.png', '.jpg', '.jpeg', '.webp', '.bmp', '.gif')):
-                    image_paths.append(os.path.join(path, file))
+            files = os.listdir(path)
+            files = [os.path.join(path, f) for f in files]
         elif os.path.isfile(path):
-            image_paths.append(path)
+            files = [path]
         else:
             print(f"Invalid path: {path}")
-
-    added_any = False
-    for img_path in image_paths:
-        img_path = os.path.abspath(img_path)    
-        exists = img_path in paths
-        if exists:
-            print(f"Skipped (already exists): {img_path}")
             continue
-        
-        try:
-            features = extract_image_features(img_path)
-            paths.append(img_path)
-            features_list.append(features)
-            print(f"Added: {img_path}")
-            added_any = True
-        except Exception as e:
-            print(f"Error processing {img_path}: {e}")
+
+        for img_path in files:
+            if not img_path.lower().endswith(('.png', '.jpg', '.jpeg', '.webp', '.bmp', '.gif')):
+                continue
+
+            img_path = os.path.abspath(img_path)
+
+            if img_path in paths:
+                print(f"Skipped (already exists): {img_path}")
+                continue
+
+            try:
+                features = extract_image_features(img_path)
+                paths.append(img_path)
+                features_list.append(features)
+                print(f"Added: {img_path}")
+                added_any = True
+            except Exception as e:
+                print(f"Error processing {img_path}: {e}")
 
     if added_any:
         save_store()

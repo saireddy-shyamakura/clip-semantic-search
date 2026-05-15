@@ -1,25 +1,27 @@
 # clip-semantic-search
 
-clip-semantic-search is a simple semantic search demo that uses OpenAI CLIP to compare image content with text descriptions.
+clip-semantic-search is a semantic search engine that uses OpenAI CLIP to search through a local database of images using text descriptions or other images. It builds a fast, vectorized local index for rapid retrieval.
 
 ## Overview
 
-The project loads a CLIP model (`ViT-B/32`), encodes an image into a vector embedding, and compares it against a list of text queries. The best matching label is printed with its similarity score.
+The project loads a CLIP model (`ViT-B/32`), encodes images into vector embeddings, and stores them in a persistent index (`image_store.pkl`). It allows you to search for images by providing either a text query (Text-to-Image search) or another image (Image-to-Image search). 
 
 ## Features
 
-- Encode an image using CLIP
-- Encode multiple text queries with the same CLIP model
-- Compute similarity scores between image and text embeddings
-- Print the best text match for a given image
+- **Batch Ingestion**: Easily add single images, multiple images, or entire directories at once using `add_images()`.
+- **Vectorized Search**: Fast image retrieval using NumPy matrix multiplication.
+- **Persistent Index**: Images and their features are saved to `image_store.pkl` to avoid re-encoding on every run.
+- **Text-to-Image Search**: Search your image database using natural language queries.
+- **Image-to-Image Search**: Find visually similar images by querying with an image.
+- **RGB Conversion**: Automatically handles varied image formats (e.g. PNGs with transparency) safely.
 
 ## Requirements
 
 - Python 3.12+
 - `torch`
-- `torchvision`
 - `Pillow`
 - `clip` (OpenAI CLIP)
+- `numpy`
 
 ## Installation
 
@@ -31,60 +33,65 @@ This project uses `uv` to manage the environment and dependencies.
 python -m pip install uv
 ```
 
-2. Install dependencies from `pyproject.toml` and `uv.lock`:
+2. Sync dependencies:
 
 ```bash
-uv install
+uv sync
 ```
 
-> If you already have `uv` installed, skip step 1.
+## Usage
 
-3. Run the demo using `uv`:
+Run the main script using `uv`:
 
 ```bash
 uv run python main.py
 ```
 
-> If you have a CUDA-capable GPU, you can change the `device` variable in `main.py` from `"cpu"` to `"cuda"`.
+### Adding Images
 
-## Usage
-
-Run the demo script directly:
-
-```bash
-python main.py
-```
-
-The script currently loads `images/dog.jpg` and compares it against the text list:
-
-- `dog`
-- `car`
-- `person running`
-
-It then prints the best matching label and its similarity score.
-
-## Example
-
-```text
-Best match: dog
-Score: 0.XXXXXX
-```
-
-## Project Structure
-
-- `main.py` - Example CLIP semantic search implementation
-- `images/` - Sample images used by the demo
-- `pyproject.toml` - Project metadata and dependency list
-
-## Customization
-
-To use a different image or text labels:
-
-1. Replace the image path in `upload_images("images/dog.jpg")`
-2. Update the list passed to `search_images([...], image_features)`
-
-To use a GPU (if available), update the `device` variable:
+You can add individual image files or entire directories to your local index. Features are automatically extracted and saved.
 
 ```python
-device = "cuda"
+# Add multiple specific files
+add_images("images/dog.jpg", "images/car.jpg")
+
+# Add an entire directory of images
+add_images("images")
+```
+
+### Searching
+
+**Image Search**
+Find images in your index that are visually similar to a query image:
+```python
+results = image_search("images/query.jpg", top_k=3)
+```
+
+**Text Search**
+Find images in your index that match a text description:
+```python
+results = text_search("a person running", top_k=3)
+```
+
+## Example Output
+
+```text
+Loaded 4 images
+Added: /absolute/path/to/images/new_image.jpg
+
+Top Matches (Image Search) :
+/path/to/images/dog2.jpg -> 1.0000
+/path/to/images/dog.jpg -> 0.7702
+
+Top Matches (Text Search):
+/path/to/images/person_running.jpg -> 0.2761
+/path/to/images/dog.jpg -> 0.2505
+```
+
+## Configuration
+
+To use a GPU for faster CLIP inference, update the `device` variable at the top of `main.py`:
+
+```python
+device = "cuda" # Set to "cuda" for NVIDIA GPUs or "mps" for Apple Silicon
 ```
