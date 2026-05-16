@@ -2,21 +2,19 @@ import os
 import logging
 from features import extract_image_features_batch
 from index import Index
-from store import Store
 from validation import validate_folder_path, validate_image_path
 
 logger = logging.getLogger(__name__)
 
-def add_images(folder: str, store: Store, index: Index, batch_size: int = 32) -> int:
+def add_images(folder: str, index: Index, batch_size: int = 32) -> int:
     """
-    Add images from a folder to the store using batch processing.
+    Add images from a folder to the index using batch processing.
     
     Validates folder exists and is readable. Skips invalid files with logging.
     Batches feature extraction and index updates to minimize index rebuilds.
     
     Args:
         folder: Path to folder containing images
-        store: Store instance
         index: Index instance
         batch_size: Number of images to process at once
         
@@ -43,7 +41,7 @@ def add_images(folder: str, store: Store, index: Index, batch_size: int = 32) ->
             continue
 
         # Skip already indexed files
-        if store.item_exists(path):
+        if index.item_exists(path):
             skipped += 1
             continue
 
@@ -72,10 +70,6 @@ def add_images(folder: str, store: Store, index: Index, batch_size: int = 32) ->
     failed += (len(paths_to_process) - added)
 
     if added > 0:
-        for path in successful_paths:
-            store.add_item(path)
-            
-        store.save()
         index.add_vectors(successful_paths, new_features)
         logger.info(f"Added {added} images, skipped {skipped}, failed {failed}")
     else:

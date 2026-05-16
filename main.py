@@ -2,7 +2,6 @@ import os
 import logging
 from features import extract_image_features
 from index import Index
-from store import Store
 from search import image_search, text_search
 from validation import (
     validate_image_path, validate_text_query, validate_folder_path,
@@ -21,18 +20,14 @@ logger = logging.getLogger(__name__)
 def main():
     """Main application entry point with input validation."""
     try:
-        # Initialize store and index
-        store = Store()
+        # Initialize index
         index = Index()
-        
-        # Load existing data
-        store.load()
         
         # Add images from folder (batched)
         images_folder = os.path.join(os.path.dirname(__file__), "images")
-        add_images(images_folder, store, index)
+        add_images(images_folder, index)
         
-        logger.info(f"Database ready: {store.count()} images indexed")
+        logger.info(f"Database ready: {index.get_vector_count()} images indexed")
 
         print("\n=== Image Search Engine ===")
         print("1. Image search (find similar images)")
@@ -53,10 +48,10 @@ def main():
                     break
 
                 if choice == "1":
-                    image_search_mode(index, store)
+                    image_search_mode(index)
 
                 elif choice == "2":
-                    text_search_mode(index, store)
+                    text_search_mode(index)
 
             except EOFError:
                 print("\nGoodbye!")
@@ -70,9 +65,9 @@ def main():
         raise
 
 
-def image_search_mode(index: Index, store: Store):
+def image_search_mode(index: Index):
     """Interactive image search mode."""
-    if store.count() == 0:
+    if index.get_vector_count() == 0:
         print("No images in database. Add images first.")
         return
     
@@ -105,7 +100,7 @@ def image_search_mode(index: Index, store: Store):
                     continue
             
             # Perform search
-            results = image_search(query_path, index, store, top_k)
+            results = image_search(query_path, index, top_k)
             
             if not results:
                 print("No results found")
@@ -123,9 +118,9 @@ def image_search_mode(index: Index, store: Store):
             print(f"Error: {e}")
 
 
-def text_search_mode(index: Index, store: Store):
+def text_search_mode(index: Index):
     """Interactive text search mode."""
-    if store.count() == 0:
+    if index.get_vector_count() == 0:
         print("No images in database. Add images first.")
         return
     
@@ -158,7 +153,7 @@ def text_search_mode(index: Index, store: Store):
                     continue
             
             # Perform search
-            results = text_search(query, index, store, top_k)
+            results = text_search(query, index, top_k)
             
             if not results:
                 print("No results found")

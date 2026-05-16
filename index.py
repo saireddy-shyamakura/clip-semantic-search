@@ -90,3 +90,12 @@ class Index:
     def get_vector_count(self) -> int:
         """Get total number of vectors in index."""
         return self.collection.count()
+    
+    def item_exists(self, path: str) -> bool:
+        """Check if an image path already exists in index."""
+        import os
+        if not path:
+            return False
+        abs_path = os.path.abspath(path)
+        result = self.collection.get(ids=[abs_path])
+        return len(result["ids"]) > 0

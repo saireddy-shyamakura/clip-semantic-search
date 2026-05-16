@@ -1,11 +1,10 @@
 from typing import List, Tuple
 from features import extract_image_features, extract_text_features
 from index import Index
-from store import Store
 from validation import validate_image_path, validate_text_query, ValidationError
 
 
-def _search(query_vector, top_k: int, index: Index, store: Store) -> List[Tuple[float, str]]:
+def _search(query_vector, top_k: int, index: Index) -> List[Tuple[float, str]]:
     """
     Internal search helper.
     
@@ -13,7 +12,6 @@ def _search(query_vector, top_k: int, index: Index, store: Store) -> List[Tuple[
         query_vector: Query vector (shape: 1, dim)
         top_k: Number of results
         index: Index instance
-        store: Store instance
         
     Returns:
         List of (score, path) tuples
@@ -24,14 +22,13 @@ def _search(query_vector, top_k: int, index: Index, store: Store) -> List[Tuple[
     return index.search(query_vector, top_k)
 
 
-def image_search(query_image_path: str, index: Index, store: Store, top_k: int = 3) -> List[Tuple[float, str]]:
+def image_search(query_image_path: str, index: Index, top_k: int = 3) -> List[Tuple[float, str]]:
     """
     Search for images similar to a query image.
     
     Args:
         query_image_path: Path to query image
         index: Index instance
-        store: Store instance
         top_k: Number of top results to return
         
     Returns:
@@ -46,17 +43,16 @@ def image_search(query_image_path: str, index: Index, store: Store, top_k: int =
         raise ValidationError(f"Invalid query image: {error_msg}")
     
     query = extract_image_features(query_image_path).reshape(1, -1)
-    return _search(query, top_k, index, store)
+    return _search(query, top_k, index)
 
 
-def text_search(text: str, index: Index, store: Store, top_k: int = 3) -> List[Tuple[float, str]]:
+def text_search(text: str, index: Index, top_k: int = 3) -> List[Tuple[float, str]]:
     """
     Search for images matching a text description.
     
     Args:
         text: Text query
         index: Index instance
-        store: Store instance
         top_k: Number of top results to return
         
     Returns:
@@ -74,4 +70,4 @@ def text_search(text: str, index: Index, store: Store, top_k: int = 3) -> List[T
     text = f"a photo of {text}"
     
     query = extract_text_features(text).reshape(1, -1)
-    return _search(query, top_k, index, store)
+    return _search(query, top_k, index)
