@@ -1,31 +1,85 @@
+from typing import List, Tuple
 from features import extract_image_features, extract_text_features
-import index
-import store as store_module
+from index import Index
+from store import Store
+from validation import validate_image_path, validate_text_query, ValidationError
 
-def _search(query_vector, top_k):
-    if index.faiss_index is None:
+
+def _search(query_vector, top_k: int, index: Index, store: Store) -> List[Tuple[float, str]]:
+    """
+    Internal search helper.
+    
+    Args:
+        query_vector: Query vector (shape: 1, dim)
+        top_k: Number of results
+        index: Index instance
+        store: Store instance
+        
+    Returns:
+        List of (score, path) tuples
+    """
+    if not index.is_built():
         return []
 
-    scores, indices = index.faiss_index.search(query_vector, top_k)
-
+    results_with_idx = index.search(query_vector, top_k)
+    
     results = []
-    for i, idx in enumerate(indices[0]):
-        if idx == -1 or idx >= len(store_module.store):
-            continue
-
-        results.append((scores[0][i], store_module.store[idx]["path"]))
-
+    for score, idx in results_with_idx:
+        item = store.get_by_index(idx)
+        if item is not None:
+            results.append((score, item["path"]))
+    
     return results
 
-def image_search(query_image_path, top_k=3):
+
+def image_search(query_image_path: str, index: Index, store: Store, top_k: int = 3) -> List[Tuple[float, str]]:
+    """
+    Search for images similar to a query image.
+    
+    Args:
+        query_image_path: Path to query image
+        index: Index instance
+        store: Store instance
+        top_k: Number of top results to return
+        
+    Returns:
+        List of (similarity_score, image_path) tuples
+        
+    Raises:
+        ValidationError: If query_image_path is invalid
+    """
+    # Validate image path
+    is_valid, error_msg = validate_image_path(query_image_path)
+    if not is_valid:
+        raise ValidationError(f"Invalid query image: {error_msg}")
+    
     query = extract_image_features(query_image_path).reshape(1, -1)
-    return _search(query, top_k)
+    return _search(query, top_k, index, store)
 
 
-def text_search(text, top_k=3):
+def text_search(text: str, index: Index, store: Store, top_k: int = 3) -> List[Tuple[float, str]]:
+    """
+    Search for images matching a text description.
+    
+    Args:
+        text: Text query
+        index: Index instance
+        store: Store instance
+        top_k: Number of top results to return
+        
+    Returns:
+        List of (similarity_score, image_path) tuples
+        
+    Raises:
+        ValidationError: If text query is invalid
+    """
+    # Validate text query
+    is_valid, error_msg = validate_text_query(text)
+    if not is_valid:
+        raise ValidationError(f"Invalid text query: {error_msg}")
+    
     text = text.strip()
     text = f"a photo of {text}"
-
+    
     query = extract_text_features(text).reshape(1, -1)
-
-    return _search(query, top_k)
+    return _search(query, top_k, index, store)

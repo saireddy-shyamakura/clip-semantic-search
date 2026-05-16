@@ -1,6 +1,38 @@
 import os
+import torch
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STORE_PATH = os.path.join(BASE_DIR, "image_store.pkl")
-DEVICE = "cpu"  # or "cuda"
 MODEL_NAME = "ViT-B/16"
+
+def get_device() -> str:
+    """
+    Priority:
+
+    1. Auto-detect CUDA (NVIDIA GPU)
+    2. Auto-detect MPS (Apple Silicon)
+    3. Fall back to CPU
+    
+    Returns:
+        Device string: "cuda", "mps", or "cpu"
+    """
+    
+    # Auto-detect CUDA
+    if torch.cuda.is_available():
+        device = "cuda"
+        gpu_count = torch.cuda.device_count()
+        gpu_name = torch.cuda.get_device_name(0)
+        print(f"CUDA available: {gpu_count} GPU(s) detected - {gpu_name}")
+        return device
+    
+    # Auto-detect MPS (Apple Silicon)
+    if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        print("MPS (Apple Silicon) available")
+        return "mps"
+    
+    # Fall back to CPU
+    print("No GPU detected, using CPU")
+    return "cpu"
+
+
+DEVICE = get_device()
