@@ -1,13 +1,13 @@
 import os
 import logging
-from features import extract_image_features
+from features import extract_image_features_batch
 from index import Index
 from store import Store
 from validation import validate_folder_path, validate_image_path
 
 logger = logging.getLogger(__name__)
 
-def add_images(folder: str, store: Store, index: Index) -> int:
+def add_images(folder: str, store: Store, index: Index, batch_size: int = 32) -> int:
     """
     Add images from a folder to the store using batch processing.
     
@@ -18,6 +18,7 @@ def add_images(folder: str, store: Store, index: Index) -> int:
         folder: Path to folder containing images
         store: Store instance
         index: Index instance
+        batch_size: Number of images to process at once
         
     Returns:
         Number of images successfully added
@@ -28,9 +29,7 @@ def add_images(folder: str, store: Store, index: Index) -> int:
         logger.error(f"Cannot add images: {error_msg}")
         return 0
 
-    new_features = []  # Batch new features before adding to index
-    new_paths = []     # Batch new paths for ChromaDB IDs
-    added = 0
+    paths_to_process = []
     failed = 0
     skipped = 0
     
@@ -55,26 +54,31 @@ def add_images(folder: str, store: Store, index: Index) -> int:
             failed += 1
             continue
 
-        logger.info(f"Processing: {file}")
+        paths_to_process.append(path)
 
-        try:
-            features = extract_image_features(path)
-            store.add_item(path)
-            new_paths.append(path)
-            new_features.append(features)
-            added += 1
-        except Exception as e:
-            logger.error(f"Failed to process {file}: {e}")
-            failed += 1
-
-    if added > 0:
-        store.save()
-        index.add_vectors(new_paths, new_features)
-        logger.info(f"Added {added} images, skipped {skipped}, failed {failed}")
-    else:
+    if not paths_to_process:
         if skipped > 0:
             logger.info(f"No new images. Skipped {skipped} already-indexed files.")
         else:
             logger.info("No new images found")
+        return 0
+
+    logger.info(f"Found {len(paths_to_process)} new images to process.")
     
+    # Process in batches
+    successful_paths, new_features = extract_image_features_batch(paths_to_process, batch_size=batch_size)
+    
+    added = len(successful_paths)
+    failed += (len(paths_to_process) - added)
+
+    if added > 0:
+        for path in successful_paths:
+            store.add_item(path)
+            
+        store.save()
+        index.add_vectors(successful_paths, new_features)
+        logger.info(f"Added {added} images, skipped {skipped}, failed {failed}")
+    else:
+        logger.warning(f"Failed to process any new images out of {len(paths_to_process)} attempted.")
+        
     return added
