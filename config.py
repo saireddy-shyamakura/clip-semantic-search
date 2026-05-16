@@ -2,7 +2,8 @@ import os
 import torch
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-STORE_PATH = os.path.join(BASE_DIR, "image_store.pkl")
+STORE_PATH = os.path.join(BASE_DIR, "image_store.json")
+CHROMA_DB_DIR = os.path.join(BASE_DIR, "chroma_db")
 MODEL_NAME = "ViT-B/16"
 
 def get_device() -> str:

@@ -12,3 +12,5 @@ image_store.pkl
 images/
 
 ToDo.txt
+image_store.json
+chroma_db/

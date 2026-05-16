@@ -32,11 +32,6 @@ def main():
         images_folder = os.path.join(os.path.dirname(__file__), "images")
         add_images(images_folder, store, index)
         
-        # Build index if needed
-        if store.count() > 0 and not index.is_built():
-            all_features = [item["features"] for item in store.get_all()]
-            index.build(all_features)
-
         logger.info(f"Database ready: {store.count()} images indexed")
 
         print("\n=== Image Search Engine ===")

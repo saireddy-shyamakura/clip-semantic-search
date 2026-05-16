@@ -1,76 +1,50 @@
 import numpy as np
-import faiss
 import logging
+import chromadb
 from typing import List, Tuple, Optional
+from config import CHROMA_DB_DIR
 
 logger = logging.getLogger(__name__)
 
-
 class Index:
-    """Manages FAISS vector indexing for fast image search with incremental updates."""
+    """Manages ChromaDB vector indexing for fast image search with persistent storage."""
     
     def __init__(self):
-        """Initialize empty index."""
-        self._faiss_index: Optional[faiss.IndexFlatIP] = None
-        self._features_matrix: Optional[np.ndarray] = None
-        self._vector_count: int = 0
+        """Initialize ChromaDB client and collection."""
+        self.client = chromadb.PersistentClient(path=CHROMA_DB_DIR)
+        self.collection = self.client.get_or_create_collection(
+            name="images",
+            metadata={"hnsw:space": "cosine"} # Cosine similarity space matches our previous Inner Product since vectors are normalized
+        )
     
-    def build(self, features_list: List[np.ndarray]) -> None:
+    def add_vectors(self, paths: List[str], vectors: List[np.ndarray]) -> None:
         """
-        Build FAISS index from scratch from list of feature vectors.
+        Add new vectors to ChromaDB collection.
         
         Args:
-            features_list: List of numpy arrays (each normalized to unit length)
+            paths: List of string file paths (used as IDs)
+            vectors: List of new numpy arrays to add
         """
-        if len(features_list) > 0:
-            logger.info(f"Building index for {len(features_list)} items")
-            
-            self._features_matrix = np.vstack(features_list).astype(np.float32)
-            dim = self._features_matrix.shape[1]
-            
-            # Inner Product (works as cosine similarity since vectors are normalized)
-            self._faiss_index = faiss.IndexFlatIP(dim)
-            self._faiss_index.add(self._features_matrix)
-            self._vector_count = len(features_list)
-            logger.info(f"Index built successfully with {self._vector_count} vectors")
-        else:
-            self._faiss_index = None
-            self._features_matrix = None
-            self._vector_count = 0
-            logger.warning("Cannot build index: features list is empty")
-    
-    def add_vectors(self, new_features_list: List[np.ndarray]) -> None:
-        """
-        Incrementally add new vectors to existing index.
-        Creates new index if not already built.
-        
-        Args:
-            new_features_list: List of new numpy arrays to add
-        """
-        if len(new_features_list) == 0:
+        if len(vectors) == 0:
             logger.warning("No new features to add")
             return
-        
-        new_matrix = np.vstack(new_features_list).astype(np.float32)
-        
-        if self._faiss_index is None:
-            # Build new index if not exists
-            logger.info(f"Creating new index with {len(new_features_list)} items")
-            self.build(new_features_list)
-        else:
-            # Incrementally add to existing index
-            logger.info(f"Adding {len(new_features_list)} new vectors to existing index")
             
-            if self._features_matrix is not None:
-                self._features_matrix = np.vstack([self._features_matrix, new_matrix])
-            else:
-                self._features_matrix = new_matrix
-            
-            self._faiss_index.add(new_matrix)
-            self._vector_count += len(new_features_list)
-            logger.info(f"Index updated: now has {self._vector_count} total vectors")
+        if len(paths) != len(vectors):
+            logger.error("Paths and vectors length mismatch")
+            return
+        
+        # Convert numpy arrays to nested lists of floats for ChromaDB
+        embeddings = [v.flatten().tolist() for v in vectors]
+        
+        logger.info(f"Adding {len(paths)} new vectors to ChromaDB")
+        self.collection.upsert(
+            embeddings=embeddings,
+            ids=paths,
+            metadatas=[{"path": path} for path in paths]
+        )
+        logger.info(f"ChromaDB updated: now has {self.collection.count()} total vectors")
     
-    def search(self, query_vector: np.ndarray, top_k: int = 3) -> List[Tuple[float, int]]:
+    def search(self, query_vector: np.ndarray, top_k: int = 3) -> List[Tuple[float, str]]:
         """
         Search for top_k nearest neighbors.
         
@@ -79,37 +53,40 @@ class Index:
             top_k: Number of top results to return
             
         Returns:
-            List of (score, index) tuples sorted by descending score
+            List of (score, path) tuples sorted by descending score
         """
-        if self._faiss_index is None:
-            logger.debug("Search attempted on unbuilt index")
+        if self.collection.count() == 0:
+            logger.debug("Search attempted on empty index")
             return []
         
         # Clamp top_k to avoid requesting more results than exist
-        effective_k = min(top_k, self._vector_count)
+        effective_k = min(top_k, self.collection.count())
         if effective_k == 0:
             return []
         
-        scores, indices = self._faiss_index.search(query_vector, effective_k)
+        query_embedding = query_vector.flatten().tolist()
         
-        results = []
-        for i, idx in enumerate(indices[0]):
-            if idx != -1:
-                results.append((scores[0][i], idx))
+        results = self.collection.query(
+            query_embeddings=[query_embedding],
+            n_results=effective_k
+        )
         
-        logger.debug(f"Search returned {len(results)} results")
-        return results
+        out = []
+        if results["ids"] and results["ids"][0]:
+            for i in range(len(results["ids"][0])):
+                distance = results["distances"][0][i]
+                # In cosine space, score = 1 - distance
+                score = 1.0 - distance
+                path = results["ids"][0][i]
+                out.append((score, path))
+                
+        logger.debug(f"Search returned {len(out)} results")
+        return out
     
     def is_built(self) -> bool:
-        """Check if index has been built."""
-        return self._faiss_index is not None
-    
-    def get_dimension(self) -> Optional[int]:
-        """Get vector dimension of the index."""
-        if self._faiss_index is not None:
-            return self._faiss_index.d
-        return None
+        """Check if index has any items."""
+        return self.collection.count() > 0
     
     def get_vector_count(self) -> int:
         """Get total number of vectors in index."""
-        return self._vector_count
+        return self.collection.count()

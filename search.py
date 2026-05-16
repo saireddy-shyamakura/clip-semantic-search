@@ -21,15 +21,7 @@ def _search(query_vector, top_k: int, index: Index, store: Store) -> List[Tuple[
     if not index.is_built():
         return []
 
-    results_with_idx = index.search(query_vector, top_k)
-    
-    results = []
-    for score, idx in results_with_idx:
-        item = store.get_by_index(idx)
-        if item is not None:
-            results.append((score, item["path"]))
-    
-    return results
+    return index.search(query_vector, top_k)
 
 
 def image_search(query_image_path: str, index: Index, store: Store, top_k: int = 3) -> List[Tuple[float, str]]:

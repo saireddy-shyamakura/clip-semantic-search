@@ -29,6 +29,7 @@ def add_images(folder: str, store: Store, index: Index) -> int:
         return 0
 
     new_features = []  # Batch new features before adding to index
+    new_paths = []     # Batch new paths for ChromaDB IDs
     added = 0
     failed = 0
     skipped = 0
@@ -58,7 +59,8 @@ def add_images(folder: str, store: Store, index: Index) -> int:
 
         try:
             features = extract_image_features(path)
-            store.add_item(path, features)
+            store.add_item(path)
+            new_paths.append(path)
             new_features.append(features)
             added += 1
         except Exception as e:
@@ -67,7 +69,7 @@ def add_images(folder: str, store: Store, index: Index) -> int:
 
     if added > 0:
         store.save()
-        index.add_vectors(new_features)
+        index.add_vectors(new_paths, new_features)
         logger.info(f"Added {added} images, skipped {skipped}, failed {failed}")
     else:
         if skipped > 0:
