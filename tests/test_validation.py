@@ -3,7 +3,7 @@
 import os
 import tempfile
 import pytest
-from validation import (
+from momento.validation import (
     validate_image_path,
     validate_text_query,
     validate_folder_path,

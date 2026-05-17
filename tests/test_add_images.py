@@ -8,8 +8,8 @@ import numpy as np
 import pytest
 from unittest.mock import patch
 
-from add_images import add_images
-from index import Index
+from momento.add_images import add_images
+from momento.index import Index
 
 
 # ── Helpers ──────────────────────────────────────────────────────────
@@ -52,7 +52,7 @@ class TestAllAlreadyIndexed:
         dummy_vecs = [np.random.randn(512).astype(np.float32) for _ in range(2)]
         idx.add_vectors([path_a, path_b], dummy_vecs)
 
-        with patch("add_images.extract_image_features_batch") as mock_extract:
+        with patch("momento.add_images.extract_image_features_batch") as mock_extract:
             result = add_images(str(img_dir), idx)
 
         assert result == 0
@@ -67,7 +67,7 @@ class TestAllAlreadyIndexed:
         idx = _make_index(tmp_path)
         idx.add_vectors([path], [np.random.randn(512).astype(np.float32)])
 
-        with patch("add_images.extract_image_features_batch") as mock_extract:
+        with patch("momento.add_images.extract_image_features_batch") as mock_extract:
             add_images(str(img_dir), idx)
 
         mock_extract.assert_not_called()
@@ -89,7 +89,7 @@ class TestUnsupportedExtensionsOnly:
 
         idx = _make_index(tmp_path)
 
-        with patch("add_images.extract_image_features_batch") as mock_extract:
+        with patch("momento.add_images.extract_image_features_batch") as mock_extract:
             result = add_images(str(img_dir), idx)
 
         assert result == 0
@@ -105,7 +105,7 @@ class TestUnsupportedExtensionsOnly:
 
         idx = _make_index(tmp_path)
 
-        with patch("add_images.extract_image_features_batch") as mock_extract:
+        with patch("momento.add_images.extract_image_features_batch") as mock_extract:
             add_images(str(img_dir), idx)
 
         mock_extract.assert_not_called()
@@ -129,7 +129,7 @@ class TestMixedNewAndIndexed:
         # Pre-index only the "old" image
         idx.add_vectors([already_indexed], [np.random.randn(512).astype(np.float32)])
 
-        with patch("add_images.extract_image_features_batch") as mock_extract:
+        with patch("momento.add_images.extract_image_features_batch") as mock_extract:
             mock_extract.side_effect = lambda paths, **kwargs: _dummy_vectors(paths)
             result = add_images(str(img_dir), idx)
 
@@ -152,7 +152,7 @@ class TestMixedNewAndIndexed:
             captured_paths.extend(paths)
             return _dummy_vectors(paths)
 
-        with patch("add_images.extract_image_features_batch", side_effect=capture_extract):
+        with patch("momento.add_images.extract_image_features_batch", side_effect=capture_extract):
             add_images(str(img_dir), idx)
 
         assert already_indexed not in captured_paths
@@ -171,7 +171,7 @@ class TestMixedNewAndIndexed:
         idx = _make_index(tmp_path)
         idx.add_vectors([already_indexed], [np.random.randn(512).astype(np.float32)])
 
-        with patch("add_images.extract_image_features_batch") as mock_extract:
+        with patch("momento.add_images.extract_image_features_batch") as mock_extract:
             mock_extract.side_effect = lambda paths, **kwargs: _dummy_vectors(paths)
             result = add_images(str(img_dir), idx)
 
@@ -213,7 +213,7 @@ class TestEmptyFolder:
 
         idx = _make_index(tmp_path)
 
-        with patch("add_images.extract_image_features_batch") as mock_extract:
+        with patch("momento.add_images.extract_image_features_batch") as mock_extract:
             add_images(str(img_dir), idx)
 
         mock_extract.assert_not_called()

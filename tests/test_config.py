@@ -27,7 +27,7 @@ class TestGetDevice:
         with patch("torch.cuda.is_available", return_value=True), \
              patch("torch.cuda.device_count", return_value=1), \
              patch("torch.cuda.get_device_name", return_value="Mock GPU"):
-            from config import get_device
+            from momento.config import get_device
             result = get_device()
 
         assert result == "cuda"
@@ -42,7 +42,7 @@ class TestGetDevice:
         """
         with patch("torch.cuda.is_available", return_value=False), \
              patch("torch.backends.mps.is_available", return_value=True):
-            from config import get_device
+            from momento.config import get_device
             result = get_device()
 
         assert result == "mps"
@@ -56,7 +56,7 @@ class TestGetDevice:
         """
         with patch("torch.cuda.is_available", return_value=False), \
              patch("torch.backends.mps.is_available", return_value=False):
-            from config import get_device
+            from momento.config import get_device
             result = get_device()
 
         assert result == "cpu"

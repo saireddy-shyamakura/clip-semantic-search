@@ -7,7 +7,7 @@ import os
 import numpy as np
 import pytest
 
-from index import Index
+from momento.index import Index
 
 
 # ── Helpers ──────────────────────────────────────────────────────────

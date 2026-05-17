@@ -16,7 +16,7 @@ import pytest
 
 def _import_search():
     """Import _search without triggering torch or chromadb at module level."""
-    import search as _search_module
+    import momento.search as _search_module
     return _search_module._search
 
 
@@ -228,3 +228,37 @@ class TestIndexNotBuilt:
         results = _search(_DUMMY_QUERY, _TOP_K, mock_index, threshold=_THRESHOLD)
 
         assert results == []
+
+# ---------------------------------------------------------------------------
+# Hypothesis Property Tests
+# ---------------------------------------------------------------------------
+
+from hypothesis import given, strategies as st
+
+class TestThresholdFilteringProperties:
+    """Property-based tests for threshold filtering."""
+
+    @given(
+        results=st.lists(st.tuples(st.floats(min_value=0.0, max_value=1.0), st.text()), min_size=0, max_size=50),
+        threshold=st.floats(min_value=0.0, max_value=1.0)
+    )
+    def test_property_4_filtering_never_adds_results(self, results, threshold):
+        """Property 4: Threshold filtering never adds results."""
+        _search = _import_search()
+        mock_index = _make_mock_index(results)
+        
+        output = _search(_DUMMY_QUERY, _TOP_K, mock_index, threshold=threshold)
+        assert len(output) <= len(results)
+
+    @given(
+        results=st.lists(st.tuples(st.floats(min_value=0.0, max_value=1.0), st.text()), min_size=0, max_size=50),
+        threshold=st.floats(min_value=0.0, max_value=1.0)
+    )
+    def test_property_5_filtering_only_passes_valid_results(self, results, threshold):
+        """Property 5: Threshold filtering only passes results >= threshold."""
+        _search = _import_search()
+        mock_index = _make_mock_index(results)
+        
+        output = _search(_DUMMY_QUERY, _TOP_K, mock_index, threshold=threshold)
+        for score, _ in output:
+            assert score >= threshold

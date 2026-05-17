@@ -105,5 +105,40 @@ def test_render_result_percentage_value(tmp_path):
 
     result = render_result(1, 0.62, image_path, cwd=cwd)
 
-    # round(0.62 * 100) == 62
     assert "62% match" in result
+
+# ---------------------------------------------------------------------------
+# Hypothesis Property Tests
+# ---------------------------------------------------------------------------
+
+from hypothesis import given, settings, HealthCheck, strategies as st
+import string
+
+class TestOutputProperties:
+
+    @given(score=st.floats(min_value=0.0, max_value=1.0))
+    def test_property_10_bar_is_exactly_10_chars(self, score):
+        """Property 10: Similarity bar is exactly 10 characters."""
+        assert len(format_bar(score)) == 10
+
+    @given(score=st.floats(min_value=0.0, max_value=1.0))
+    def test_property_11_bar_filled_count_proportional(self, score):
+        """Property 11: Similarity bar filled count is proportional to score."""
+        assert format_bar(score).count("█") == round(score * 10)
+
+    @given(
+        score=st.floats(min_value=0.0, max_value=1.0),
+        rank=st.integers(min_value=1, max_value=1000),
+        path_components=st.lists(st.text(alphabet=string.ascii_letters, min_size=1, max_size=10), min_size=1, max_size=5)
+    )
+    @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
+    def test_property_12_relative_path_display(self, tmp_path, score, rank, path_components):
+        """Property 12: Relative path display for paths inside CWD."""
+        # Construct absolute path under a tmp CWD
+        cwd = str(tmp_path)
+        image_path = os.path.join(cwd, *path_components)
+        
+        result = render_result(rank, score, image_path, cwd=cwd)
+        
+        # assert render_result() output does not contain the absolute prefix
+        assert cwd not in result
