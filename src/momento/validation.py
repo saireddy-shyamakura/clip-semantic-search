@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 from typing import Tuple
-from config import SUPPORTED_EXTENSIONS
+from .config import SUPPORTED_EXTENSIONS
 
 
 class ValidationError(Exception):

@@ -1,8 +1,8 @@
 import numpy as np
 import chromadb
 from typing import List, Tuple
-from config import CHROMA_DB_DIR
-from logger import get_logger
+from .config import CHROMA_DB_DIR
+from .logger import get_logger
 
 logger = get_logger(__name__)
 

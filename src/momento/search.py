@@ -1,8 +1,8 @@
 from typing import List, Tuple
-from features import extract_image_features, extract_text_features
-from index import Index
-from config import SIMILARITY_THRESHOLD
-from validation import validate_image_path, validate_text_query, ValidationError
+from .features import extract_image_features, extract_text_features
+from .index import Index
+from .config import SIMILARITY_THRESHOLD
+from .validation import validate_image_path, validate_text_query, ValidationError
 
 
 def _search(query_vector, top_k: int, index: Index, threshold: float = SIMILARITY_THRESHOLD) -> List[Tuple[float, str]]:

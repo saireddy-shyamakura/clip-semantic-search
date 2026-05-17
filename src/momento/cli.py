@@ -1,17 +1,20 @@
 import os
 import sys
-from logger import setup_logger
 import argparse
+import subprocess
 from typing import List, Tuple
-from index import Index
-from search import image_search, text_search
-from validation import (
+
+from .logger import setup_logger
+from .index import Index
+from .search import image_search, text_search
+from .validation import (
     validate_image_path, validate_text_query, validate_folder_path,
     validate_choice, validate_positive_int, ValidationError
 )
-from add_images import add_images
-from config import SIMILARITY_THRESHOLD
-from src.momento.output import render_result
+from .add_images import add_images
+from .config import SIMILARITY_THRESHOLD, BASE_DIR
+from .output import render_result, open_file
+from .lock import LockFile
 
 logger = setup_logger(__name__)
 
@@ -19,7 +22,7 @@ try:
     from importlib.metadata import version as _pkg_version
     _VERSION = _pkg_version("momento")
 except Exception:
-    _VERSION = "1.0.0-beta"
+    _VERSION = "1.0.0"
 
 
 def verify_index(index: Index) -> int:
@@ -37,7 +40,7 @@ def verify_index(index: Index) -> int:
     return len(stale)
 
 
-def main():
+def run_cli():
     """Main application entry point with input validation."""
     parser = argparse.ArgumentParser(description="Momento Image Search Engine")
     parser.add_argument("--dir", "-d", type=str, help="Directory containing images to index on startup")
@@ -47,6 +50,7 @@ def main():
     parser.add_argument("--threshold", type=float, default=None,
                         help="Similarity threshold for search results (0.0–1.0)")
     parser.add_argument("--verify", action="store_true", help="Remove stale index entries and exit")
+    parser.add_argument("--open", action="store_true", help="Open the top search result in the system viewer")
     args = parser.parse_args()
 
     # --version: print version and exit 0 (no index needed)
@@ -90,7 +94,7 @@ def main():
             add_images(images_folder, index)
         else:
             # Default fallback for backwards compatibility
-            images_folder = os.path.join(os.path.dirname(__file__), "images")
+            images_folder = os.path.join(BASE_DIR, "..", "images")
             if os.path.exists(images_folder):
                 add_images(images_folder, index)
         
@@ -116,10 +120,10 @@ def main():
                     break
 
                 if choice == "1":
-                    image_search_mode(index, threshold)
+                    image_search_mode(index, threshold, open_result=args.open)
 
                 elif choice == "2":
-                    text_search_mode(index, threshold)
+                    text_search_mode(index, threshold, open_result=args.open)
                     
                 elif choice == "3":
                     add_images_mode(index)
@@ -163,7 +167,7 @@ def print_paginated_results(results: List[Tuple[float, str]], page_size: int = 1
                 break
 
 
-def image_search_mode(index: Index, threshold: float = SIMILARITY_THRESHOLD):
+def image_search_mode(index: Index, threshold: float = SIMILARITY_THRESHOLD, open_result: bool = False):
     """Interactive image search mode."""
     if index.get_vector_count() == 0:
         print("No images in database. Add images first.")
@@ -201,6 +205,11 @@ def image_search_mode(index: Index, threshold: float = SIMILARITY_THRESHOLD):
             results = image_search(query_path, index, top_k, threshold=threshold)
             
             print_paginated_results(results)
+            if open_result and results:
+                try:
+                    open_file(results[0][1])
+                except (OSError, subprocess.CalledProcessError) as e:
+                    print(f"Error opening file: {e}")
         except ValidationError as e:
             print(f"Validation error: {e}")
         except KeyboardInterrupt:
@@ -213,7 +222,7 @@ def image_search_mode(index: Index, threshold: float = SIMILARITY_THRESHOLD):
             print(f"Error: {e}")
 
 
-def text_search_mode(index: Index, threshold: float = SIMILARITY_THRESHOLD):
+def text_search_mode(index: Index, threshold: float = SIMILARITY_THRESHOLD, open_result: bool = False):
     """Interactive text search mode."""
     if index.get_vector_count() == 0:
         print("No images in database. Add images first.")
@@ -251,6 +260,11 @@ def text_search_mode(index: Index, threshold: float = SIMILARITY_THRESHOLD):
             results = text_search(query, index, top_k, threshold=threshold)
             
             print_paginated_results(results)
+            if open_result and results:
+                try:
+                    open_file(results[0][1])
+                except (OSError, subprocess.CalledProcessError) as e:
+                    print(f"Error opening file: {e}")
         except ValidationError as e:
             print(f"Validation error: {e}")
         except KeyboardInterrupt:
@@ -291,6 +305,17 @@ def add_images_mode(index: Index):
             logger.error(f"Error adding images: {e}")
             print(f"Error: {e}")
 
+
+def main():
+    lock = LockFile(os.path.join(BASE_DIR, "momento.lock"))
+    if not lock.acquire():
+        print("Momento is already running in another process.", file=sys.stderr)
+        sys.exit(1)
+        
+    try:
+        run_cli()
+    finally:
+        lock.release()
 
 if __name__ == "__main__":
     main()

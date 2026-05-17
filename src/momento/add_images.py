@@ -1,11 +1,22 @@
 import os
-from features import extract_image_features_batch
-from index import Index
-from validation import validate_folder_path, validate_image_path
-from config import SUPPORTED_EXTENSIONS
-from logger import get_logger
+from .features import extract_image_features_batch
+from .index import Index
+from .validation import validate_folder_path, validate_image_path
+from .config import SUPPORTED_EXTENSIONS
+from .logger import get_logger
+
+try:
+    from tqdm import tqdm
+    _HAS_TQDM = True
+except ImportError:
+    _HAS_TQDM = False
 
 logger = get_logger(__name__)
+
+def _make_progress(total: int, desc: str):
+    if _HAS_TQDM:
+        return tqdm(total=total, desc=desc)
+    return None
 
 def add_images(folder: str, index: Index, batch_size: int = 32) -> int:
     """
@@ -69,20 +80,43 @@ def add_images(folder: str, index: Index, batch_size: int = 32) -> int:
             logger.info(f"No new images. Skipped {skipped} already-indexed files.")
         else:
             logger.info("No new images found")
+        print(f"Done: 0 added, {skipped} skipped, {failed} failed")
         return 0
 
-    logger.info(f"Found {len(paths_to_process)} new images to process.")
+    total = len(paths_to_process)
+    logger.info(f"Found {total} new images to process.")
     
     # Process in batches
-    successful_paths, new_features = extract_image_features_batch(paths_to_process, batch_size=batch_size)
+    total_batches = (total + batch_size - 1) // batch_size
+    progress = _make_progress(total_batches, "Indexing images")
+    
+    successful_paths = []
+    new_features = []
+    processed = 0
+    
+    for i in range(0, total, batch_size):
+        batch = paths_to_process[i:i+batch_size]
+        batch_paths, batch_features = extract_image_features_batch(batch, batch_size=len(batch))
+        successful_paths.extend(batch_paths)
+        new_features.extend(batch_features)
+        
+        processed += len(batch)
+        if progress:
+            progress.update(1)
+        else:
+            print(f"Processing: {processed}/{total} images...")
+            
+    if progress:
+        progress.close()
     
     added = len(successful_paths)
-    failed += (len(paths_to_process) - added)
+    failed += (total - added)
 
     if added > 0:
         index.add_vectors(successful_paths, new_features)
         logger.info(f"Added {added} images, skipped {skipped}, failed {failed}")
     else:
-        logger.warning(f"Failed to process any new images out of {len(paths_to_process)} attempted.")
+        logger.warning(f"Failed to process any new images out of {total} attempted.")
         
+    print(f"Done: {added} added, {skipped} skipped, {failed} failed")
     return added
