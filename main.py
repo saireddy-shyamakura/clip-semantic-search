@@ -11,7 +11,7 @@ from validation import (
 )
 from add_images import add_images
 from config import SIMILARITY_THRESHOLD
-from momento.output import render_result
+from src.momento.output import render_result
 
 logger = setup_logger(__name__)
 
