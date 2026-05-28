@@ -43,7 +43,7 @@ Optional dependencies (enable extra features):
 
 ```bash
 pip install uv
-git clone https://github.com/your-username/momento.git
+git clone https://github.com/saireddy-shyamakura/momento.git
 cd momento
 uv sync
 ```
