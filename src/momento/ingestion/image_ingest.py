@@ -1,11 +1,11 @@
 import os
-from .features import extract_image_features_batch
-from .cache import load_embedding, save_embedding
+from ..embedding.legacy_compat import extract_image_features_batch
+from ..storage.cache import load_embedding, save_embedding
 import numpy as np
-from .index import Index
-from .validation import validate_folder_path, validate_image_path, is_path_safe
-from .config import SUPPORTED_EXTENSIONS
-from .logger import get_logger
+from ..storage.vector_store import Index
+from ..core.validation import validate_folder_path, validate_image_path, is_path_safe
+from ..core.config import SUPPORTED_EXTENSIONS
+from ..core.logger import get_logger
 
 try:
     from tqdm import tqdm

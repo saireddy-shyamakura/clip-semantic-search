@@ -16,14 +16,14 @@ import sqlite3
 from typing import Dict, Tuple, Optional, List
 from datetime import datetime
 
-from .config import (
+from ..core.config import (
     CHROMA_DB_DIR,
     EMBEDDING_CACHE_DIR,
     LOG_DIR,
     BASE_DIR,
     CACHE_MAX_SIZE_GB,
 )
-from .logger import get_logger
+from ..core.logger import get_logger
 
 logger = get_logger(__name__)
 

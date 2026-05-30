@@ -12,9 +12,9 @@ import os
 import shutil
 from typing import Tuple, Dict, List
 
-from .validation import validate_folder_path
-from .config import SUPPORTED_EXTENSIONS, SUPPORTED_VIDEO_EXTENSIONS
-from .logger import get_logger
+from ..core.validation import validate_folder_path
+from ..core.config import SUPPORTED_EXTENSIONS, SUPPORTED_VIDEO_EXTENSIONS
+from ..core.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -184,7 +184,7 @@ class FilePicker:
     @staticmethod
     def _get_data_dir() -> str:
         """Get the database data directory."""
-        from .config import BASE_DIR
+        from ..core.config import BASE_DIR
         return BASE_DIR
     
     def preview_indexable_files(self, folder: str) -> Dict[str, int]:

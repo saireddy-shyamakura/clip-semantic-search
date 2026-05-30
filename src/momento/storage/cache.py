@@ -15,8 +15,8 @@ import hashlib
 import numpy as np
 from typing import Optional
 
-from .config import EMBEDDING_CACHE_DIR
-from .logger import get_logger
+from ..core.config import EMBEDDING_CACHE_DIR
+from ..core.logger import get_logger
 
 logger = get_logger(__name__)
 

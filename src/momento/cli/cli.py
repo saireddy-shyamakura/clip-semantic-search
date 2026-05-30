@@ -22,10 +22,10 @@ import os
 import json
 import argparse
 
-from .logger import setup_logger, set_log_format
-from .app_controller import AppController
-from .config import BASE_DIR, load_config, save_config, MomentoConfig
-from .lock import LockFile
+from ..core.logger import setup_logger, set_log_format
+from .controller import AppController
+from ..core.config import BASE_DIR, load_config, save_config, MomentoConfig
+from ..core.lock import LockFile
 
 logger = setup_logger(__name__)
 
@@ -374,7 +374,7 @@ def _handle_config_command(args) -> None:
     config = load_config()
 
     if args.config_action == "show":
-        from .config import CONFIG_FILE
+        from ..core.config import CONFIG_FILE
         print(f"\nConfiguration file: {CONFIG_FILE}")
         print("=" * 50)
         print(f"enable_multi_embed       = {config.enable_multi_embed}")
@@ -452,23 +452,23 @@ def _handle_config_command(args) -> None:
 
 def _handle_doctor_command() -> None:
     """Handle the 'doctor' subcommand."""
-    from .diagnostics import run_doctor, print_doctor_report
+    from ..diagnostics.doctor import run_doctor, print_doctor_report
     result = run_doctor()
     print_doctor_report(result)
 
 
 def _handle_stats_command() -> None:
     """Handle the 'stats' subcommand."""
-    from .diagnostics import get_index_stats, print_index_stats
-    from .config import CHROMA_DB_DIR
+    from ..diagnostics.stats import get_index_stats, print_index_stats
+    from ..core.config import CHROMA_DB_DIR
     stats = get_index_stats(CHROMA_DB_DIR)
     print_index_stats(stats)
 
 
 def _handle_benchmark_command() -> None:
     """Handle the 'benchmark' subcommand."""
-    from .diagnostics import run_benchmark, print_benchmark_report
-    from .config import CHROMA_DB_DIR
+    from ..diagnostics.benchmark_perf import run_benchmark, print_benchmark_report
+    from ..core.config import CHROMA_DB_DIR
     result = run_benchmark(CHROMA_DB_DIR)
     print_benchmark_report(result)
 
@@ -479,8 +479,8 @@ def _handle_benchmark_retrieval_command(args) -> None:
     Runs retrieval quality benchmarks comparing CLIP-only vs V3 pipeline.
     Measures recall@k, precision, and latency.
     """
-    from .diagnostics import run_retrieval_benchmark, print_retrieval_benchmark_report
-    from .config import CHROMA_DB_DIR
+    from ..diagnostics.benchmark_retrieval import run_retrieval_benchmark, print_retrieval_benchmark_report
+    from ..core.config import CHROMA_DB_DIR
 
     print("\n" + "=" * 60)
     print("🔍 Retrieval Quality Benchmark")
@@ -507,8 +507,8 @@ def _handle_export_command(args) -> None:
     Args:
         args: Parsed arguments with format and output.
     """
-    from .index import Index
-    from .config import CHROMA_DB_DIR
+    from ..storage.vector_store import Index
+    from ..core.config import CHROMA_DB_DIR
 
     output_path = args.output or "momento_export.npz"
     export_format = args.format
@@ -554,8 +554,8 @@ def _handle_import_command(args) -> None:
     Args:
         args: Parsed arguments with from_file.
     """
-    from .index import Index
-    from .config import CHROMA_DB_DIR
+    from ..storage.vector_store import Index
+    from ..core.config import CHROMA_DB_DIR
 
     input_path = args.from_file
     if not os.path.exists(input_path):
@@ -608,7 +608,7 @@ def _handle_dry_run(args) -> None:
     Args:
         args: Parsed arguments with dir, exclude.
     """
-    from .validation import validate_folder_path
+    from ..core.validation import validate_folder_path
     from .file_picker import FilePicker
 
     folder = args.dir
@@ -702,7 +702,7 @@ def run_cli():
             controller.initialize_index()
 
             # Validate and confirm folder
-            from .validation import validate_folder_path
+            from ..core.validation import validate_folder_path
             from .file_picker import FilePicker
 
             is_valid, error_msg = validate_folder_path(args.dir)

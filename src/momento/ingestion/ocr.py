@@ -19,7 +19,7 @@ try:
 except ImportError:
     _HAS_OCR = False
 
-from .device import device_manager
+from ..core.device import device_manager
 
 _ocr_reader: Optional["easyocr.Reader"] = None
 

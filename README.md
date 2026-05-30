@@ -20,9 +20,9 @@
 Momento is a **local-first, multimodal retrieval engine** that lets you search images and videos using text, images, or a combination of signals — entirely on your machine, with zero cloud dependencies.
 
 ```
-Query ──→ Query Expansion ──→ CLIP Recall ──→ [Reranker] ──→ Fusion ──→ Results
-                                    │
-                              Exact Index (FTS5)
+Query ──→ QueryRouter ──→ ExactIndex (FTS5) ──┐
+                │                               ├──→ Results
+                └──→ QueryExpansion ──→ CLIP Recall ──→ [Reranker] ──→ Fusion
 ```
 
 ### What Makes It Different?
@@ -66,7 +66,6 @@ Pure CLIP-based systems are great at semantic search but fail at:
 | Parallel Execution | ✅ | Concurrent video/YOLO/OCR after images |
 | Device Fallback | ✅ | CUDA → MPS → CPU with OOM recovery |
 | Memory Pre-check | ✅ | Warns if <2 GB free RAM before indexing |
-| Disk Space Check | ✅ | Estimates storage needs before ingestion |
 | Embedding Cache | ✅ | Hash-based cache avoids recomputation |
 
 ### Storage
@@ -119,38 +118,57 @@ momento doctor
 ## Architecture Overview
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                     CLI (momento)                     │
-│         ──────── parse_arguments ────────            │
-└───────────────────┬─────────────────────────────────┘
-                    │
-┌───────────────────▼─────────────────────────────────┐
-│                  AppController                       │
-│  ┌──────────────────────────────────────────────┐   │
-│  │  Index Pipeline                              │   │
-│  │  ┌──────────┐  ┌──────────┐  ┌────────────┐  │   │
-│  │  │ Images   │  │ Videos   │  │ YOLO + OCR │  │   │
-│  │  │ (serial) │──┤ (parallel)├──┤ (parallel) │  │   │
-│  │  └──────────┘  └──────────┘  └────────────┘  │   │
-│  └──────────────────────────────────────────────┘   │
-│  ┌──────────────────────────────────────────────┐   │
-│  │  Retrieval Pipeline                          │   │
-│  │                                              │   │
-│  │  Query ─┬─ Exact Index (FTS5) ──┐           │   │
-│  │         │                       ├── Results  │   │
-│  │         └─ Vector Search ───────┘           │   │
-│  │             │  │  │                         │   │
-│  │    Expand   │  │  │                         │   │
-│  │    Recall   │  │  │                         │   │
-│  │    Rerank   │  │  │                         │   │
-│  │    Fusion   ┘  └───┘                       │   │
-│  └──────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│                    CLI (momento)                         │
+│              parse_arguments → run_cli                   │
+└───────────────────────┬─────────────────────────────────┘
+                        │
+┌───────────────────────▼─────────────────────────────────┐
+│                   AppController                          │
+│  ┌──────────────────────────────────────────────────┐   │
+│  │  Indexer (indexing/) — Parallel feature pipeline │   │
+│  │  ┌──────────┐   ┌──────────┐   ┌────────────┐   │   │
+│  │  │ Images   │   │ Videos   │   │ YOLO + OCR │   │   │
+│  │  │ (serial) │──▶│ (parallel)│──▶│ (parallel) │   │   │
+│  │  └──────────┘   └──────────┘   └────────────┘   │   │
+│  │  Features: ingestion/image_ingest, media_ingest  │   │
+│  └──────────────────────────────────────────────────┘   │
+│                                                          │
+│  ┌──────────────────────────────────────────────────┐   │
+│  │  Retrieval Pipeline (retrieval/pipeline.py)       │   │
+│  │                                                    │   │
+│  │  QueryRouter                                       │   │
+│  │    ├─ ExactIndex (storage/exact_index.py)          │   │
+│  │    │   └─ SQLite FTS5 filename/path search         │   │
+│  │    └─ Vector Search (storage/vector_store.py)      │   │
+│  │         └─ ChromaDB cosine similarity              │   │
+│  │                                                    │   │
+│  │  QueryExpansion (retrieval/query_expansion.py)     │   │
+│  │    └─ Synonym injection + multi-variant recall     │   │
+│  │                                                    │   │
+│  │  Recall (retrieval/recall.py)                      │   │
+│  │    └─ First-stage CLIP top-K retrieval             │   │
+│  │                                                    │   │
+│  │  [Optional] Reranker (retrieval/rerank.py)         │   │
+│  │    └─ Pluggable cross-encoder stage                │   │
+│  │                                                    │   │
+│  │  Fusion (retrieval/fusion.py)                       │   │
+│  │    └─ Embedding + YOLO + OCR score combination     │   │
+│  └──────────────────────────────────────────────────┘   │
+│                                                          │
+│  ┌──────────────────────────────────────────────────┐   │
+│  │  Storage Layer (storage/)                         │   │
+│  │  ┌──────────┐  ┌──────────┐  ┌────────────────┐ │   │
+│  │  │ChromaDB  │  │SQLite    │  │SQLite FTS5     │ │   │
+│  │  │Vectors   │  │Metadata  │  │Exact Index     │ │   │
+│  │  └──────────┘  └──────────┘  └────────────────┘ │   │
+│  └──────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────┘
 ```
 
 ### Key Design Principles
 
-1. **Separation of concerns** — retrieval logic lives in `retrieval/`, embedding in `embedding/`, storage behind abstractions
+1. **Clean module boundaries** — `core/` (infra), `ingestion/` (media processing), `retrieval/` (search pipeline), `storage/` (persistence), `embedding/` (model abstraction)
 2. **Fail-safe pipelines** — checkpoint/resume, error isolation, graceful degradation
 3. **Hybrid > Pure vector** — exact search for filenames, semantic for content
 4. **Pluggable architecture** — swap embedding models, rerankers, storage backends
@@ -187,8 +205,8 @@ momento --fusion-weights "0.5,0.3,0.2" --dir ~/Pictures
 ### Programmatic API
 
 ```python
-from momento.index import Index
-from momento.search import text_search
+from momento.storage.vector_store import Index
+from momento.retrieval.pipeline import text_search
 
 index = Index(db_path="~/.local/share/momento/chroma_db")
 results = text_search("a dog in a park", index, top_k=10)
@@ -222,8 +240,10 @@ for score, path in results:
 | `momento doctor` | System health check |
 | `momento stats` | Index statistics |
 | `momento benchmark` | Performance benchmarks |
+| `momento benchmark-retrieval` | Retrieval quality benchmark |
 | `momento config show/set` | View/modify configuration |
 | `momento storage info/backup/restore` | Storage management |
+| `momento export/import` | Index data portability |
 
 See [CLI Reference](PERSISTENT_STORAGE.md) for complete documentation.
 
@@ -234,29 +254,69 @@ See [CLI Reference](PERSISTENT_STORAGE.md) for complete documentation.
 ```
 momento/
 ├── src/momento/
-│   ├── embedding/         # Unified embedding abstraction
-│   │   ├── base.py        # Abstract EmbeddingBackend interface
-│   │   └── clip_backend.py # CLIP implementation
-│   ├── retrieval/         # Multi-stage retrieval pipeline
-│   │   ├── recall.py      # Fast CLIP recall (top-K)
-│   │   ├── rerank.py      # Optional re-ranking stage
-│   │   ├── fusion.py      # Cross-modal score fusion
-│   │   ├── router.py      # Query type classification
-│   │   └── query_expansion.py  # Synonym-based expansion
-│   ├── search/            # Hybrid search orchestration
-│   │   └── exact_index.py # SQLite FTS5 exact search
-│   ├── storage/           # Storage separation
-│   │   └── metadata_store.py  # SQLite metadata store
-│   ├── diagnostics.py     # Health, stats, benchmarks
-│   ├── indexer.py         # Parallel indexing orchestrator
-│   ├── checkpoint.py      # Crash recovery system
-│   └── ...                # V2 compatibility layer
+│   ├── core/                  # Foundational infrastructure
+│   │   ├── config.py          # MomentoConfig, env/Toml/CLI overrides
+│   │   ├── device.py          # DeviceManager (CUDA/MPS/CPU)
+│   │   ├── exceptions.py      # FeatureError, IndexingError, SearchError
+│   │   ├── lock.py            # Process lock for single-instance
+│   │   ├── shutdown.py        # SIGINT/SIGTERM handlers
+│   │   ├── logger.py          # Structured logging (text/JSON)
+│   │   └── validation.py      # Input validation utilities
+│   │
+│   ├── embedding/             # Unified embedding abstraction
+│   │   ├── base.py            # EmbeddingBackend protocol
+│   │   ├── clip_backend.py    # CLIP implementation
+│   │   └── legacy_compat.py   # V2 → V3 compat wrappers
+│   │
+│   ├── ingestion/             # Media processing pipeline
+│   │   ├── image_ingest.py    # Basic image ingestion
+│   │   ├── media_ingest.py    # Multi-embed, video, YOLO, OCR orchestrators
+│   │   ├── augment.py         # Image augmentation transforms
+│   │   ├── video.py           # Video keyframe extraction
+│   │   ├── yolo.py            # YOLO object detection
+│   │   └── ocr.py             # OCR text extraction
+│   │
+│   ├── retrieval/             # Multi-stage retrieval pipeline
+│   │   ├── pipeline.py        # V3 search pipeline orchestrator
+│   │   ├── recall.py          # Fast CLIP recall (top-K)
+│   │   ├── rerank.py          # Optional re-ranking stage
+│   │   ├── fusion.py          # Cross-modal score fusion
+│   │   ├── router.py          # Query type classification
+│   │   └── query_expansion.py # Synonym-based expansion
+│   │
+│   ├── storage/               # Data persistence layer
+│   │   ├── vector_store.py    # ChromaDB wrapper (Index)
+│   │   ├── metadata_store.py  # SQLite file metadata
+│   │   ├── exact_index.py     # SQLite FTS5 exact filename search
+│   │   ├── cache.py           # Embedding LRU cache
+│   │   └── manager.py         # Backup, restore, optimize
+│   │
+│   ├── indexing/              # Indexing orchestration
+│   │   ├── indexer.py         # Parallel feature indexing
+│   │   └── checkpoint.py      # Crash recovery system
+│   │
+│   ├── diagnostics/           # Health, stats, benchmarks
+│   │   ├── doctor.py          # System health check
+│   │   ├── stats.py           # Index statistics
+│   │   ├── benchmark_perf.py  # Performance benchmarks
+│   │   └── benchmark_retrieval.py  # Retrieval quality benchmarks
+│   │
+│   ├── cli/                   # Command-line interface
+│   │   ├── cli.py             # Argument parsing, entry points
+│   │   ├── controller.py      # AppController (three-phase workflow)
+│   │   ├── query_manager.py   # Interactive search loop
+│   │   ├── file_picker.py     # Folder selection UI
+│   │   └── output.py          # Result display utilities
+│   │
+│   ├── search/                # [DEPRECATED] Backward-compat facade
+│   └── __init__.py            # Package version + public API re-exports
+│
 ├── tests/
-│   ├── unit/              # 36 test files, fully mocked
-│   └── integration/       # Model-dependent tests
+│   ├── unit/                  # 36+ test files, fully mocked
+│   └── integration/           # Model-dependent tests
 ├── docs/
-│   ├── ARCHITECTURE.md    # Full system design
-│   └── DESIGN_DECISIONS.md # Technical rationale
+│   ├── ARCHITECTURE.md        # Full system design
+│   └── DESIGN_DECISIONS.md    # Technical rationale
 └── pyproject.toml
 ```
 
@@ -269,6 +329,7 @@ momento/
 3. **Stream over batch** — single-file streaming indexing lowers memory and improves crash recovery
 4. **Fail-safe by default** — checkpoint every feature, catch every error, degrade gracefully
 5. **Storage separation** — vectors, metadata, and exact indexes live independently for flexibility
+6. **Modular > Monolithic** — `retrieval/pipeline.py` orchestrates, `retrieval/recall.py` recalls, `retrieval/fusion.py` fuses — each module does one thing
 
 ---
 
@@ -282,17 +343,3 @@ pytest tests/unit/ -v
 pytest tests/ -v
 
 # With coverage
-pytest --cov=src/momento --cov-report=term-missing
-```
-
----
-
-## License
-
-MIT — see [LICENSE](LICENSE) for details.
-
----
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) and [ARCHITECTURE.md](docs/ARCHITECTURE.md) before submitting PRs.

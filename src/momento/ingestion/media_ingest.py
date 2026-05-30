@@ -12,19 +12,19 @@ ChromaDB HNSW index rebuild overhead.
 import os
 from typing import List, Optional
 
-from .features import (
+from ..embedding.legacy_compat import (
     extract_multi_embeddings,
     extract_object_embeddings,
     extract_ocr_embedding,
     extract_pil_features_batch,
 )
-from .index import Index
-from .validation import validate_folder_path, is_path_safe
-from .config import (
+from ..storage.vector_store import Index
+from ..core.validation import validate_folder_path, is_path_safe
+from ..core.config import (
     SUPPORTED_EXTENSIONS, SUPPORTED_VIDEO_EXTENSIONS,
     VIDEO_FRAME_INTERVAL, MAX_FRAMES_PER_VIDEO, COMPOSITE_SEP,
 )
-from .logger import get_logger
+from ..core.logger import get_logger
 
 try:
     from tqdm import tqdm
@@ -79,7 +79,7 @@ def _collect_image_paths(folder: str) -> List[str]:
     return paths
 
 
-from .add_images import add_images
+from .image_ingest import add_images
 
 
 # ── Multi-embedding ingestion ────────────────────────────────────────

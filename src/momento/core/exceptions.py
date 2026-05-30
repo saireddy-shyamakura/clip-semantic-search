@@ -7,7 +7,7 @@ Provides consistent error handling, logging, and user-friendly messages.
 from typing import List, Optional
 import sys
 
-from .logger import get_logger
+from ..core.logger import get_logger
 
 logger = get_logger(__name__)
 

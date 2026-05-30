@@ -1,8 +1,8 @@
 """
-features.py — Feature extraction for Momento (V3 compatibility layer).
+legacy_compat.py — Backward-compatibility wrappers for feature extraction (V3).
 
-This module now delegates to the unified embedding abstraction layer
-at ``embedding/``.  All functions are kept for backward compatibility.
+Provides the legacy API surface from the old ``features.py`` module.
+All functions delegate to ``ClipBackend`` under the hood.
 
 New code should import from ``embedding`` directly:
     from momento.embedding import ClipBackend
@@ -12,8 +12,8 @@ New code should import from ``embedding`` directly:
 import numpy as np
 from typing import List, Optional, Tuple
 
-from .embedding import ClipBackend
-from .logger import get_logger
+from .clip_backend import ClipBackend
+from ..core.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -25,28 +25,9 @@ def _get_backend(model_name: Optional[str] = None) -> ClipBackend:
     """Get or create the global ClipBackend singleton."""
     global _backend
     if _backend is None:
-        from .config import MODEL_NAME
+        from ..core.config import MODEL_NAME
         _backend = ClipBackend(model_name or MODEL_NAME)
     return _backend
-
-
-def get_model(model_name: Optional[str] = None):
-    """Legacy: return (model, preprocess) tuple.
-
-    Kept for backward compatibility with any external consumers.
-    Delegates to ClipBackend.
-    """
-    from .device import device_manager
-    import clip
-
-    if model_name is None:
-        from .config import MODEL_NAME
-        model_name = MODEL_NAME
-
-    dev = device_manager.device
-    logger.info(f"Loading CLIP model ({model_name}) on device: {dev}")
-    model, preprocess = clip.load(model_name, device=dev)
-    return model, preprocess
 
 
 def clear_model_cache() -> None:
@@ -109,8 +90,8 @@ def extract_multi_embeddings(image_path: str, model_name: Optional[str] = None) 
     Kept as-is for backward compatibility.  Uses ClipBackend internally.
     """
     from PIL import Image
-    from .augment import generate_augmentations
-    from .config import COMPOSITE_SEP
+    from ..ingestion.augment import generate_augmentations
+    from ..core.config import COMPOSITE_SEP
 
     with Image.open(image_path) as img:
         img_rgb = img.convert("RGB")
@@ -140,8 +121,8 @@ def extract_object_embeddings(image_path: str) -> List[Tuple[dict, np.ndarray]]:
 
     Kept as-is for backward compatibility.
     """
-    from .yolo import detect_objects, is_available as yolo_available
-    from .config import COMPOSITE_SEP
+    from ..ingestion.yolo import detect_objects, is_available as yolo_available
+    from ..core.config import COMPOSITE_SEP
 
     if not yolo_available():
         logger.warning("YOLO not available — skipping object detection")
@@ -168,8 +149,8 @@ def extract_ocr_embedding(image_path: str):
 
     Kept as-is for backward compatibility.
     """
-    from .ocr import extract_text as ocr_extract, is_available as ocr_available
-    from .config import OCR_MIN_TEXT_LENGTH
+    from ..ingestion.ocr import extract_text as ocr_extract, is_available as ocr_available
+    from ..core.config import OCR_MIN_TEXT_LENGTH
 
     if not ocr_available():
         logger.warning("EasyOCR not available — skipping OCR")

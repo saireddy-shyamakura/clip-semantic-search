@@ -59,7 +59,7 @@ def get_yolo_model(model_name: str = "yolov8n.pt") -> "YOLO":
     return _yolo_model
 
 
-from .device import device_manager
+from ..core.device import device_manager
 
 def detect_objects(
     image_path: str,

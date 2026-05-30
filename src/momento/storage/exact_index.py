@@ -14,8 +14,8 @@ import sqlite3
 import threading
 from typing import List, Optional, Tuple
 
-from ..config import CHROMA_DB_DIR
-from ..logger import get_logger
+from ..core.config import CHROMA_DB_DIR
+from ..core.logger import get_logger
 
 logger = get_logger(__name__)
 

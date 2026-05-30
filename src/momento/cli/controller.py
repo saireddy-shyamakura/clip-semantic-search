@@ -17,20 +17,18 @@ from typing import Optional, Dict, List
 from dataclasses import dataclass
 from importlib.metadata import version as _pkg_version
 
-from .logger import setup_logger, get_logger
-from .index import Index
-from .cache import clear_cache
-from .config import BASE_DIR, CHROMA_DB_DIR, COMPOSITE_SEP, MAX_SEARCH_RESULTS, MomentoConfig, load_config
-from .validation import validate_folder_path, validate_positive_int
-from .indexer import Indexer, IndexingStats
+from ..core.logger import setup_logger, get_logger
+from ..storage.vector_store import Index
+from ..storage.cache import clear_cache
+from ..core.config import BASE_DIR, CHROMA_DB_DIR, COMPOSITE_SEP, MAX_SEARCH_RESULTS, MomentoConfig, load_config
+from ..core.validation import validate_folder_path, validate_positive_int
+from ..indexing.indexer import Indexer, IndexingStats
 from .query_manager import QueryManager
 from .file_picker import FilePicker
-from .lock import LockFile
-from .search import image_search, text_search
-from .shutdown import is_shutdown_requested, install_signal_handlers, reset_shutdown_flag
-from .checkpoint import get_checkpoint_manager, FeatureStatus
-from .storage_manager import get_storage_manager
-from .features import clear_model_cache
+from ..core.lock import LockFile
+from ..search import image_search, text_search
+from ..core.shutdown import is_shutdown_requested, install_signal_handlers, reset_shutdown_flag
+from ..embedding.legacy_compat import clear_model_cache
 
 logger = setup_logger(__name__)
 
@@ -58,8 +56,6 @@ class AppController:
         self.state.config = config or load_config()
         lock_path = os.path.join(BASE_DIR, "momento.lock")
         self.lock_file = LockFile(lock_path)
-        self.checkpoint_manager = get_checkpoint_manager()
-        self.storage_manager = get_storage_manager()
         install_signal_handlers()
         
     def initialize_index(self) -> Index:

@@ -12,12 +12,12 @@ import os
 import sys
 from typing import List, Tuple, Optional
 
-from .index import Index
-from .search import image_search, text_search
-from .validation import validate_image_path, validate_text_query, validate_choice
+from ..storage.vector_store import Index
+from ..search import image_search, text_search
+from ..core.validation import validate_image_path, validate_text_query, validate_choice
 from .output import render_result, open_file
-from .config import SIMILARITY_THRESHOLD, MAX_SEARCH_RESULTS
-from .logger import get_logger
+from ..core.config import SIMILARITY_THRESHOLD, MAX_SEARCH_RESULTS
+from ..core.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -229,7 +229,7 @@ class QueryManager:
                 return
             
             score, path = results[choice]
-            from .config import COMPOSITE_SEP
+            from ..core.config import COMPOSITE_SEP
             # Handle composite IDs (path|||suffix → path)
             if COMPOSITE_SEP in path:
                 base_path = path.split(COMPOSITE_SEP)[0]

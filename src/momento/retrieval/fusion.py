@@ -14,7 +14,7 @@ Formula:
 from typing import Dict, List, Tuple
 from dataclasses import dataclass, field
 
-from ..logger import get_logger
+from ..core.logger import get_logger
 
 logger = get_logger(__name__)
 

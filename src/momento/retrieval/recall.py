@@ -8,8 +8,8 @@ return more candidates than needed and let the reranker narrow down.
 from typing import List, Optional, Tuple
 import numpy as np
 
-from ..index import Index
-from ..logger import get_logger
+from ..storage.vector_store import Index
+from ..core.logger import get_logger
 
 logger = get_logger(__name__)
 

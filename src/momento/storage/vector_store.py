@@ -15,8 +15,8 @@ from typing import List, Tuple, Dict, Any, Optional
 from collections import defaultdict
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
-from .config import CHROMA_DB_DIR, COMPOSITE_SEP
-from .logger import get_logger
+from ..core.config import CHROMA_DB_DIR, COMPOSITE_SEP
+from ..core.logger import get_logger
 
 logger = get_logger(__name__)
 

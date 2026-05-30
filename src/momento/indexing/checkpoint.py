@@ -20,8 +20,8 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, field, asdict
 from enum import Enum
 
-from .config import BASE_DIR, MomentoConfig
-from .logger import get_logger
+from ..core.config import BASE_DIR, MomentoConfig
+from ..core.logger import get_logger
 
 logger = get_logger(__name__)
 

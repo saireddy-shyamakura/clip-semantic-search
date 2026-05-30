@@ -15,7 +15,7 @@ import shutil
 from typing import Dict, Any, List, Tuple
 from dataclasses import dataclass, field
 
-from .logger import get_logger
+from ..core.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -85,8 +85,8 @@ def _check_chromadb() -> bool:
 def _check_clip_model() -> bool:
     """Check if CLIP model can be loaded."""
     try:
-        from .features import get_model
-        get_model()
+        from ..embedding.clip_backend import ClipBackend
+        ClipBackend("ViT-B/16")
         return True
     except Exception:
         return False
@@ -147,7 +147,7 @@ def run_doctor() -> DoctorResult:
 
     # Device
     try:
-        from .device import device_manager
+        from ..core.device import device_manager
         result.device = device_manager.device
     except Exception as e:
         result.errors.append(f"Device detection failed: {e}")
@@ -160,7 +160,7 @@ def run_doctor() -> DoctorResult:
 
     # Disk space
     try:
-        from .config import CHROMA_DB_DIR
+        from ..core.config import CHROMA_DB_DIR
         check_path = CHROMA_DB_DIR if os.path.exists(CHROMA_DB_DIR) else "/"
         result.disk_space_gb, result.disk_space_free_gb = _check_disk_space(check_path)
     except Exception:
@@ -268,7 +268,7 @@ def run_retrieval_benchmark(
     result.total_queries = iterations
 
     try:
-        from .index import Index
+        from ..storage.vector_store import Index
         idx = Index(db_path=index_path)
         result.index_vector_count = idx.get_vector_count()
 
@@ -278,8 +278,9 @@ def run_retrieval_benchmark(
 
         # Collect random entries from the index for query text
         import numpy as np
-        from .features import extract_text_features
-        from .search import text_search, ExactIndex
+        from ..embedding.legacy_compat import extract_text_features
+        from ..search import text_search
+        from ..storage.exact_index import ExactIndex
 
         # Generate test queries from indexed entries
         all_paths = idx.get_all_paths()
@@ -411,14 +412,14 @@ def get_index_stats(index_path: str) -> IndexStats:
     stats.db_path = index_path
 
     try:
-        from .index import Index
+        from ..storage.vector_store import Index
         idx = Index(db_path=index_path)
         stats.total_vectors = idx.get_vector_count()
 
         all_paths = idx.get_all_paths()
         stats.total_entries = len(all_paths)
 
-        from .config import COMPOSITE_SEP
+        from ..core.config import COMPOSITE_SEP
         stats.image_count = len([p for p in all_paths
                                  if COMPOSITE_SEP not in p or f'{COMPOSITE_SEP}orig' in p])
         stats.video_count = len([p for p in all_paths if f'{COMPOSITE_SEP}frame_' in p])
@@ -493,12 +494,12 @@ def run_benchmark(index_path: str, iterations: int = 5) -> BenchmarkResult:
     import numpy as np
 
     try:
-        from .index import Index
+        from ..storage.vector_store import Index
         idx = Index(db_path=index_path)
         result.index_vector_count = idx.get_vector_count()
 
         # Embedding extraction benchmark (if there are images to test)
-        from .features import extract_text_features
+        from ..embedding.legacy_compat import extract_text_features
         timings = []
         for _ in range(iterations):
             t0 = time.time()

@@ -23,8 +23,8 @@ import threading
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
-from ..config import CHROMA_DB_DIR
-from ..logger import get_logger
+from ..core.config import CHROMA_DB_DIR
+from ..core.logger import get_logger
 
 logger = get_logger(__name__)
 

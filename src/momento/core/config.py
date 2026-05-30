@@ -14,8 +14,8 @@ import platformdirs
 from typing import Optional, Dict, Any
 from dataclasses import dataclass, field, asdict
 
-from .logger import get_logger
-from .device import DeviceManager, device_manager
+from ..core.logger import get_logger
+from ..core.device import DeviceManager, device_manager
 
 # Package-internal reference (for bundled assets only — NOT for user data)
 PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__))

@@ -25,23 +25,23 @@ from typing import List, Optional
 from enum import Enum
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from .index import Index
-from .logger import get_logger
-from .ingest import (
+from ..storage.vector_store import Index
+from ..core.logger import get_logger
+from ..ingestion.media_ingest import (
     add_images,
     add_images_multi,
     add_videos,
     add_objects,
     add_ocr,
 )
-from .config import (
+from ..core.config import (
     ENABLE_MULTI_EMBED,
     ENABLE_VIDEO_INDEXING,
     ENABLE_YOLO,
     ENABLE_OCR,
     BASE_DIR,
 )
-from .shutdown import is_shutdown_requested
+from ..core.shutdown import is_shutdown_requested
 
 logger = get_logger(__name__)
 
