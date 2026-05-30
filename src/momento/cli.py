@@ -271,6 +271,24 @@ Note: All features (multi-embedding, video, YOLO, OCR) are enabled by default.
     # benchmark subcommand
     subparsers.add_parser("benchmark", help="Run performance benchmarks")
 
+    # benchmark-retrieval subcommand
+    benchmark_retrieval_parser = subparsers.add_parser(
+        "benchmark-retrieval",
+        help="Run retrieval quality benchmarks (recall@k, precision)"
+    )
+    benchmark_retrieval_parser.add_argument(
+        "--iterations", type=int, default=5,
+        help="Number of iterations for averaging (default: 5)"
+    )
+    benchmark_retrieval_parser.add_argument(
+        "--top-k", type=int, default=10,
+        help="Top-K for recall/precision calculation (default: 10)"
+    )
+    benchmark_retrieval_parser.add_argument(
+        "--rerank", action="store_true",
+        help="Include reranking in the benchmark comparison"
+    )
+
     # export subcommand
     export_parser = subparsers.add_parser("export", help="Export index data")
     export_parser.add_argument("--format", type=str, default="npz", choices=["npz", "json"],
@@ -455,6 +473,32 @@ def _handle_benchmark_command() -> None:
     print_benchmark_report(result)
 
 
+def _handle_benchmark_retrieval_command(args) -> None:
+    """Handle the 'benchmark-retrieval' subcommand.
+
+    Runs retrieval quality benchmarks comparing CLIP-only vs V3 pipeline.
+    Measures recall@k, precision, and latency.
+    """
+    from .diagnostics import run_retrieval_benchmark, print_retrieval_benchmark_report
+    from .config import CHROMA_DB_DIR
+
+    print("\n" + "=" * 60)
+    print("🔍 Retrieval Quality Benchmark")
+    print("=" * 60)
+    print(f"Iterations: {args.iterations}")
+    print(f"Top-K:      {args.top_k}")
+    print(f"Rerank:     {'enabled' if args.rerank else 'disabled'}")
+    print("=" * 60)
+
+    result = run_retrieval_benchmark(
+        index_path=CHROMA_DB_DIR,
+        iterations=args.iterations,
+        top_k=args.top_k,
+        include_rerank=args.rerank,
+    )
+    print_retrieval_benchmark_report(result)
+
+
 def _handle_export_command(args) -> None:
     """Handle the 'export' subcommand.
 
@@ -620,6 +664,9 @@ def run_cli():
     if args.command == "benchmark":
         _handle_benchmark_command()
         return
+    if args.command == "benchmark-retrieval":
+        _handle_benchmark_retrieval_command(args)
+        return
     if args.command == "config":
         _handle_config_command(args)
         return
@@ -698,7 +745,7 @@ def main():
 
     # Subcommands that don't need a lock
     if hasattr(args, 'command') and args.command in (
-        "doctor", "stats", "benchmark", "config", "export", "import"
+        "doctor", "stats", "benchmark", "benchmark-retrieval", "config", "export", "import"
     ):
         try:
             run_cli()
